@@ -1,7 +1,7 @@
 """Richard's janky Python environment management tool."""
 
 __author__ = "Richard Si"
-__version__ = "2024.02.10a2"
+__version__ = "2024.02.10a3"
 
 import json
 import platform
@@ -189,6 +189,8 @@ def command_env_new(label: str) -> None:
         choices=list(pythons.keys()),
         default=default_python(pythons).version,
     ).ask()
+    if not version:
+        sys.exit(1)
     python = pythons[version]
 
     cwd = Path.cwd()
@@ -201,10 +203,16 @@ def command_env_new(label: str) -> None:
     make_default = not bool(project_envs)
     if make_default:
         secho("[+] No existing environments found, this will be the default :)", fg="magenta")
+    else:
+        if not label:
+            label = questionary.text("Let's give the environment a label:").ask()
 
     timestamp = datetime.now()
     location = ENV_STORE_PATH / f"{re.sub('[^0-9a-zA-Z]', '-', cwd.name)}-{timestamp.strftime('%Y%m%d-%H%M%S')}"
-    subprocess.run([sys.executable, "-m", "virtualenv", location, "--python", python.executable])
+    cmd = [sys.executable, "-m", "virtualenv", location, "--python", python.executable]
+    if label:
+        cmd.extend(("--prompt", label))
+    subprocess.run(cmd, check=True)
     all_envs.append(Environment(
         label=label,
         python=python,
@@ -298,6 +306,8 @@ def command_env_activation_path(shell: str) -> None:
         selected = questionary.select(
             "Activate which environment?", choices=choices, default=default_choice
         ).ask()
+        if not selected:
+            sys.exit(1)
         print(activate_path(selected, shell), file=sys.stderr)
 
 
@@ -306,6 +316,10 @@ def command_env_remove() -> None:
     """Remove environments."""
     envs, pythons = load_record()
     project_envs = search_environments_at(Path.cwd(), envs)
+    if not project_envs:
+        secho(f"[!] No environments to remove for {Path.cwd()}", fg="yellow")
+        sys.exit(1)
+
     selected = questionary.checkbox(
         "Which environments do you want to prune?",
         choices=[
