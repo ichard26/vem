@@ -1,7 +1,7 @@
 """Richard's janky Python environment management tool."""
 
 __author__ = "Richard Si"
-__version__ = "2024.02.10a3"
+__version__ = "2024.02.24a1"
 
 import json
 import platform
@@ -10,15 +10,15 @@ import shutil
 import subprocess
 import sys
 from collections import defaultdict
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any, Sequence, Union
 
 import click
 import platformdirs
 import questionary
-from click import secho, style
+from click import secho
 from click_aliases import ClickAliasedGroup
 from questionary import Choice
 
@@ -171,7 +171,7 @@ class SmartAliasedGroup(ClickAliasedGroup):
 
 @click.group(cls=SmartAliasedGroup)
 def main() -> None:
-    f"""Richard's janky Python environment management tool."""
+    """Richard's janky Python environment management tool."""
     if not RECORD_PATH.exists():
         RECORD_PATH.parent.mkdir(exist_ok=True, parents=True)
         RECORD_PATH.write_text("{}\n", encoding="utf-8")
@@ -209,7 +209,8 @@ def command_env_new(label: str) -> None:
 
     timestamp = datetime.now()
     location = ENV_STORE_PATH / f"{re.sub('[^0-9a-zA-Z]', '-', cwd.name)}-{timestamp.strftime('%Y%m%d-%H%M%S')}"
-    cmd = [sys.executable, "-m", "virtualenv", location, "--python", python.executable]
+    location = location.resolve()
+    cmd: list[Union[str, Path]] = [sys.executable, "-m", "virtualenv", location, "--python", python.executable]
     if label:
         cmd.extend(("--prompt", label))
     subprocess.run(cmd, check=True)
@@ -226,7 +227,7 @@ def command_env_new(label: str) -> None:
 
 
 @main.command("import")
-@click.argument("root", type=click.Path(exists=True, path_type=Path))
+@click.argument("root", type=click.Path(exists=True, resolve_path=True, path_type=Path))
 @click.option("-l", "--label", help="Give the environment a descriptive label.", default="")
 def command_env_import(root: Path, label: str) -> None:
     """Import a pre-existing environment for the CWD."""
@@ -264,6 +265,7 @@ def command_env_import(root: Path, label: str) -> None:
 @click.option("-a", "--all", "list_all", is_flag=True, help="List *all* environments managed by vem.")
 def command_env_list(list_all: bool) -> None:
     """List environments."""
+    envs: Sequence[Environment]
     envs, _ = load_record()
     if list_all:
         envs_by_project = defaultdict(list)
@@ -328,9 +330,20 @@ def command_env_remove() -> None:
         ],
     ).ask()
     for e in selected:
-        shutil.rmtree(e.location)
+        shutil.rmtree(e.location, ignore_errors=True)
+        project_envs.remove(e)
         envs.remove(e)
         secho(f"[-] Removed {e.python.version} environment ({e.description})", fg="red")
+
+    if project_envs and all(not e.default for e in project_envs):
+        selected = questionary.select(
+            "Select a new default environment:",
+            choices=[
+                Choice(f"{e.python.version} ({e.description})", value=e)
+                for e in project_envs
+            ],
+        ).ask()
+        envs[envs.index(selected)] = replace(selected, flags=[*selected.flags, "default"])
     save_record(envs, pythons)
 
 
@@ -359,7 +372,7 @@ def command_python_add(executable: Path, mark_as_default: bool) -> None:
     if mark_as_default and (default_install := default_python(pythons)):
         secho(f"[+] Undefaulting {default_install.version} (from {default_install.location})", fg="cyan")
     flags = ["external", "default"] if mark_as_default else ["external"]
-    pythons[version] = PythonInstall(label="", version=version, location=location, flags=flags)
+    pythons[version] = PythonInstall(label="", version=version, location=Path(location), flags=flags)
     secho(f"[+] Registered Python {version} at {location}", fg="green")
     save_record(envs, pythons)
 
@@ -369,8 +382,8 @@ def command_python_list() -> None:
     _, pythons = load_record()
     for p in sorted(pythons.values(), key=lambda p: p.version):
         color = "magenta" if p.default else None
-        secho(p.version, nl=False, fg=color, bold=True)
-        secho(f" - {p.location} ({', '.join(p.flags)})", fg=color)
+        secho(f"- {p.version}", nl=False, fg=color, bold=True)
+        secho(f" via {p.location} ({', '.join(p.flags)})", fg=color)
 
 
 @group_python.command("remove", aliases=["rm"])
