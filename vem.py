@@ -1,7 +1,7 @@
 """Richard's janky Python environment management tool."""
 
 __author__ = "Richard Si"
-__version__ = "2024.02.24a1"
+__version__ = "2024.02.24a2"
 
 import json
 import platform
@@ -10,7 +10,7 @@ import shutil
 import subprocess
 import sys
 from collections import defaultdict
-from dataclasses import asdict, dataclass, replace
+from dataclasses import asdict, dataclass, field, replace
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Sequence, Union
@@ -42,14 +42,8 @@ class PythonInstall:
     label: str
     version: str
     location: Path
+    executable: Path = field(init=False)
     flags: Sequence[str]
-
-    @property
-    def executable(self) -> Path:
-        bin_dir = "Scripts" if WINDOWS else "bin"
-        p = self.location / bin_dir / "python3"
-        assert p.exists()
-        return p
 
     @property
     def default(self) -> bool:
@@ -58,6 +52,12 @@ class PythonInstall:
     @property
     def external(self) -> bool:
         return "external" in self.flags
+
+    def __post_init__(self) -> None:
+        bin_dir = "Scripts" if WINDOWS else "bin"
+        p = self.location / bin_dir / "python3"
+        assert p.exists()
+        object.__setattr__(self, "executable", p)
 
 
 @dataclass(frozen=True)
@@ -263,10 +263,19 @@ def command_env_import(root: Path, label: str) -> None:
 
 @main.command("list")
 @click.option("-a", "--all", "list_all", is_flag=True, help="List *all* environments managed by vem.")
-def command_env_list(list_all: bool) -> None:
+@click.option("--json", "format_json", is_flag=True, help="Return machine-readable JSON instead.")
+def command_env_list(list_all: bool, format_json: bool) -> None:
     """List environments."""
     envs: Sequence[Environment]
     envs, _ = load_record()
+    if format_json:
+        if not list_all:
+            envs = search_environments_at(Path.cwd(), envs)
+        raw = [asdict(e) for e in envs]
+        json.dump(raw, sys.stdout, indent=2, cls=JSONEncoder)
+        print()
+        return
+
     if list_all:
         envs_by_project = defaultdict(list)
         for e in envs:
