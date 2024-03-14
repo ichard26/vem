@@ -1,7 +1,7 @@
 """Richard's janky Python environment management tool."""
 
 __author__ = "Richard Si"
-__version__ = "2024.02.24a2"
+__version__ = "2024.03.14a3"
 
 import json
 import platform
@@ -180,7 +180,13 @@ class SmartAliasedGroup(ClickAliasedGroup):
 
 
 def message(type: str, message: str, bold: bool = False) -> None:
-    type_colours = {"notice": "cyan", "warning": "yellow", "error": "red"}
+    type_colours = {
+        "notice": "cyan",
+        "warning": "yellow",
+        "error": "red",
+        "+": "green",
+        "-": "red",
+    }
     type = style(type, fg=type_colours[type], bold=True)
     secho(f"[{type}] {message}", bold=bold)
 
@@ -218,7 +224,7 @@ def command_env_new(label: str) -> None:
 
     make_default = not bool(project_envs)
     if make_default:
-        secho("[+] No existing environments found, this will be the default :)", fg="magenta")
+        message("notice", "No existing environments found, this will be the default :)")
     else:
         if not label:
             label = questionary.text("Let's give the environment a label:").ask()
@@ -262,7 +268,7 @@ def command_env_import(root: Path, label: str) -> None:
     project_envs = search_environments_at(cwd, all_envs)
     make_default = not bool(project_envs)
     if make_default:
-        secho("[+] No existing environments found, this will be the default :)", fg="magenta")
+        message("notice", "No existing environments found, this will be the default :)")
 
     timestamp = datetime.now()
     all_envs.append(Environment(
@@ -329,7 +335,7 @@ def command_env_activation_path(shell: str) -> None:
     cwd = Path.cwd()
     project_envs = search_environments_at(cwd, envs)
     if len(project_envs) == 0:
-        secho(f"[!] No environments found for {cwd}", fg="yellow")
+        message("error", f"No environments found for {cwd}")
         sys.exit(1)
     elif len(project_envs) == 1:
         print(activate_path(project_envs[0], shell), file=sys.stderr)
@@ -353,7 +359,7 @@ def command_env_remove() -> None:
     envs, pythons = load_record()
     project_envs = search_environments_at(Path.cwd(), envs)
     if not project_envs:
-        secho(f"[!] No environments to remove for {Path.cwd()}", fg="yellow")
+        message("error", f"No environments to remove for {Path.cwd()}")
         sys.exit(1)
 
     selected = questionary.checkbox(
@@ -387,7 +393,7 @@ def command_env_autoremove() -> None:
     envs, pythons = load_record()
     to_remove = prunable_environments(envs)
     if not to_remove:
-        secho("[!] No environments can be pruned.", fg="cyan")
+        message("notice", "No environments can be pruned.")
         sys.exit(0)
 
     for i, env in enumerate(to_remove, start=1):
@@ -425,12 +431,12 @@ def command_python_add(executable: Path, mark_as_default: bool) -> None:
     )
     location, version = proc.stdout.splitlines()
     if current_install := pythons.get(version):
-        secho(f"[!] Python {version} is already registered (from {current_install.location})", fg="yellow")
+        message("warning", f"Python {version} is already registered (from {current_install.location})")
         if not questionary.confirm("Do you want to replace the current installation?").ask():
             sys.exit(1)
 
     if mark_as_default and (default_install := default_python(pythons)):
-        secho(f"[+] Undefaulting {default_install.version} (from {default_install.location})", fg="cyan")
+        message("warning", f"Undefaulting {default_install.version} (from {default_install.location})")
     flags = ["external", "default"] if mark_as_default else ["external"]
     pythons[version] = PythonInstall(label="", version=version, location=Path(location), flags=flags)
     secho(f"[+] Registered Python {version} at {location}", fg="green")
