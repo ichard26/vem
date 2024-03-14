@@ -28,6 +28,7 @@ dependencies = [
     "click-aliases",
     "platformdirs",
     "questionary",
+    "virtualenv >= 20.18.0",
 ]
 
 dynamic = ["version", "description"]
