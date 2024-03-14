@@ -320,7 +320,7 @@ def command_env_list(list_all: bool, format_json: bool) -> None:
             secho(f" ({e.description})", fg=color)
 
 
-@main.command("list-all", aliases=["al", "alist"])
+@main.command("alist")
 @click.pass_context
 def command_env_list_all(context: click.Context) -> None:
     """Shortcut for vem list --all."""
