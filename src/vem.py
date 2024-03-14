@@ -314,6 +314,13 @@ def command_env_list(list_all: bool, format_json: bool) -> None:
             secho(f" ({e.description})", fg=color)
 
 
+@main.command("list-all", aliases=["al", "alist"])
+@click.pass_context
+def command_env_list_all(context: click.Context) -> None:
+    """Shortcut for vem list --all."""
+    context.invoke(command_env_list, list_all=True, format_json=False)
+
+
 @main.command("activation-path")
 @click.argument("shell", type=click.Choice(["default", "fish"]))
 def command_env_activation_path(shell: str) -> None:
