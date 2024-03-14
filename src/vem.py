@@ -19,7 +19,7 @@ import click
 import platformdirs
 import questionary
 from click import secho, style
-from click_aliases import ClickAliasedGroup
+from click_aliases import ClickAliasedGroup  # type: ignore
 from questionary import Choice
 
 WINDOWS = platform.system() == "Windows"
@@ -139,7 +139,7 @@ def default_python(pythons: dict[str, PythonInstall]) -> PythonInstall:
     return default[0]
 
 
-def search_environments_at(location: Path, to_search: Sequence[Environment]) -> Sequence[Environment]:
+def search_environments_at(location: Path, to_search: Sequence[Environment]) -> list[Environment]:
     envs = [e for e in to_search if e.project == location]
     return sorted(envs, key=lambda e: e.default, reverse=True)
 
@@ -331,7 +331,7 @@ def command_env_activation_path(shell: str) -> None:
             Choice(f"{e.python.version} ({e.description})", value=e)
             for e in project_envs
         ]
-        default_choice = next(c for c in choices if c.value.default)
+        default_choice = next(c for c in choices if c.value.default)  # type: ignore
         selected = questionary.select(
             "Activate which environment?", choices=choices, default=default_choice
         ).ask()
