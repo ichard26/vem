@@ -65,9 +65,9 @@ class Environment:
     label: str
     project: Path
     python: PythonInstall
+    executable: Path = field(init=False)
     location: Path
     flags: Sequence[str]
-
     created_at: datetime
 
     @property
@@ -77,6 +77,11 @@ class Environment:
     @property
     def description(self) -> str:
         return self.label or self.location.name
+
+    def __post_init__(self) -> None:
+        bin_dir = "Scripts" if WINDOWS else "bin"
+        p = self.location / bin_dir / "python3"
+        object.__setattr__(self, "executable", p)
 
 
 def activate_path(env: Environment, shell: str) -> Path:
