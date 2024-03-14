@@ -18,7 +18,7 @@ from typing import Any, Sequence, Union
 import click
 import platformdirs
 import questionary
-from click import secho
+from click import secho, style
 from click_aliases import ClickAliasedGroup
 from questionary import Choice
 
@@ -144,6 +144,11 @@ def search_environments_at(location: Path, to_search: Sequence[Environment]) -> 
     return sorted(envs, key=lambda e: e.default, reverse=True)
 
 
+def prunable_environments(envs: Sequence[Environment]) -> Sequence[Environment]:
+    """Return environments that should be suggested for autoremoval."""
+    return [env for env in envs if not env.project.exists()]
+
+
 class SmartAliasedGroup(ClickAliasedGroup):
     """
     This subclass extends click-aliases' Group subclass to also support implicit
@@ -172,6 +177,12 @@ class SmartAliasedGroup(ClickAliasedGroup):
         # always return the command's name, not the alias
         _, cmd, args = super().resolve_command(ctx, args)
         return cmd.name, cmd, args
+
+
+def message(type: str, message: str, bold: bool = False) -> None:
+    type_colours = {"notice": "cyan", "warning": "yellow", "error": "red"}
+    type = style(type, fg=type_colours[type], bold=True)
+    secho(f"[{type}] {message}", bold=bold)
 
 
 @click.group(cls=SmartAliasedGroup)
@@ -282,6 +293,8 @@ def command_env_list(list_all: bool, format_json: bool) -> None:
         return
 
     if list_all:
+        if prunable := prunable_environments(envs):
+            message("notice", f"You have {len(prunable)} environments which can be autoremoved.\n")
         envs_by_project = defaultdict(list)
         for e in envs:
             envs_by_project[e.project].append(e)
@@ -358,6 +371,32 @@ def command_env_remove() -> None:
             ],
         ).ask()
         envs[envs.index(selected)] = replace(selected, flags=[*selected.flags, "default"])
+    save_record(envs, pythons)
+
+
+@main.command("autoremove", aliases=["ar"])
+def command_env_autoremove() -> None:
+    """Automatically remove environments that are no longer needed."""
+    envs, pythons = load_record()
+    to_remove = prunable_environments(envs)
+    if not to_remove:
+        secho("[!] No environments can be pruned.", fg="cyan")
+        sys.exit(0)
+
+    for i, env in enumerate(to_remove, start=1):
+        secho(f"[{i}] {env.python.version} at {env.project}", nl=False)
+        secho(f" ({env.description})", dim=True)
+
+    print()
+    if not questionary.confirm(f"Remove these {len(to_remove)} environments?").ask():
+        sys.exit(1)
+    print()
+
+    for env in to_remove:
+        shutil.rmtree(env.location, ignore_errors=True)
+        envs.remove(env)
+        secho(f"[-] Removed {env.python.version} environment for {env.project} ({env.description})", fg="red")
+
     save_record(envs, pythons)
 
 
