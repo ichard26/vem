@@ -217,10 +217,6 @@ def command_env_new(label: str) -> None:
 
     cwd = Path.cwd()
     project_envs = search_environments_at(cwd, all_envs)
-    # if any(e.python == python for e in project_envs):
-    #     old_env = next(e for e in project_envs if e.python == python)
-    #     secho(f"\n[!] A {python.version} environment already exists! ({old_env.location.name})", fg="yellow")
-    #     sys.exit(1)
 
     make_default = not bool(project_envs)
     if make_default:
@@ -230,11 +226,14 @@ def command_env_new(label: str) -> None:
             label = questionary.text("Let's give the environment a label:").ask()
 
     timestamp = datetime.now()
-    location = ENV_STORE_PATH / f"{re.sub('[^0-9a-zA-Z]', '-', cwd.name)}-{timestamp.strftime('%Y%m%d-%H%M%S')}"
+    project_normalized_name = re.sub('[^0-9a-zA-Z]', '-', cwd.name)
+    location = ENV_STORE_PATH / f"{project_normalized_name}-{timestamp.strftime('%Y%m%d-%H%M%S')}"
     location = location.resolve()
-    cmd: list[Union[str, Path]] = [sys.executable, "-m", "virtualenv", location, "--python", python.executable]
-    if label:
-        cmd.extend(("--prompt", label))
+    label = label or f"{project_normalized_name}-{timestamp.strftime('%Y%m%d')}"
+    cmd: list[Union[str, Path]] = [
+        sys.executable, "-m", "virtualenv", location,
+        "--python", python.executable, "--prompt", label
+    ]
     subprocess.run(cmd, check=True)
     all_envs.append(Environment(
         label=label,
