@@ -23,6 +23,7 @@ from click_aliases import ClickAliasedGroup  # type: ignore
 from questionary import Choice
 
 WINDOWS = platform.system() == "Windows"
+USER_HOME = Path.home()
 BASE_PATH = Path(platformdirs.user_data_dir("vem", "ichard26"))
 RECORD_PATH = BASE_PATH / "record.json"
 ENV_STORE_PATH = BASE_PATH / "envs"
@@ -78,10 +79,22 @@ class Environment:
     def description(self) -> str:
         return self.label or self.location.name
 
+    @property
+    def short_project(self) -> str:
+        return short_path(self.project)
+
     def __post_init__(self) -> None:
         bin_dir = "Scripts" if WINDOWS else "bin"
         p = self.location / bin_dir / "python3"
         object.__setattr__(self, "executable", p)
+
+
+def short_path(path: Path) -> str:
+    """Return the user relative string representation of a path if possible."""
+    try:
+        return str(Path("~") / path.relative_to(USER_HOME))
+    except Exception:
+        return str(path)
 
 
 def activate_path(env: Environment, shell: str) -> Path:
@@ -304,7 +317,7 @@ def command_env_list(list_all: bool, format_json: bool) -> None:
         for e in envs:
             envs_by_project[e.project].append(e)
         for project, project_envs in envs_by_project.items():
-            secho(project, fg="magenta", bold=True)
+            secho(short_path(project), fg="magenta", bold=True)
             for e in project_envs:
                 secho(f" - {e.python.version}", nl=False)
                 secho(f" ({e.description})", dim=True)
@@ -399,7 +412,7 @@ def command_env_autoremove() -> None:
         sys.exit(0)
 
     for i, env in enumerate(to_remove, start=1):
-        secho(f"[{i}] {env.python.version} at {env.project}", nl=False)
+        secho(f"[{i}] {env.python.version} at {env.short_project}", nl=False)
         secho(f" ({env.description})", dim=True)
 
     print()
@@ -410,7 +423,7 @@ def command_env_autoremove() -> None:
     for env in to_remove:
         shutil.rmtree(env.location, ignore_errors=True)
         envs.remove(env)
-        secho(f"[-] Removed {env.python.version} environment for {env.project} ({env.description})", fg="red")
+        secho(f"[-] Removed {env.python.version} environment for {env.short_project} ({env.description})", fg="red")
 
     save_record(envs, pythons)
 
