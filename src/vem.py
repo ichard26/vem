@@ -27,6 +27,7 @@ USER_HOME = Path.home()
 BASE_PATH = Path(platformdirs.user_data_dir("vem", "ichard26"))
 RECORD_PATH = BASE_PATH / "record.json"
 ENV_STORE_PATH = BASE_PATH / "envs"
+CWD = Path.cwd()
 
 
 class JSONEncoder(json.JSONEncoder):
@@ -228,8 +229,7 @@ def command_env_new(label: str) -> None:
         sys.exit(1)
     python = pythons[version]
 
-    cwd = Path.cwd()
-    project_envs = search_environments_at(cwd, all_envs)
+    project_envs = search_environments_at(CWD, all_envs)
 
     make_default = not bool(project_envs)
     if make_default:
@@ -239,7 +239,7 @@ def command_env_new(label: str) -> None:
             label = questionary.text("Let's give the environment a label:").ask()
 
     timestamp = datetime.now()
-    project_normalized_name = re.sub('[^0-9a-zA-Z]', '-', cwd.name)
+    project_normalized_name = re.sub('[^0-9a-zA-Z]', '-', CWD.name)
     location = ENV_STORE_PATH / f"{project_normalized_name}-{timestamp.strftime('%Y%m%d-%H%M%S')}"
     location = location.resolve()
     label = label or f"{project_normalized_name}-{timestamp.strftime('%Y%m%d')}"
@@ -251,13 +251,13 @@ def command_env_new(label: str) -> None:
     all_envs.append(Environment(
         label=label,
         python=python,
-        project=cwd,
+        project=CWD,
         location=location,
         flags=["default"] if make_default else [],
         created_at=timestamp,
     ))
     save_record(all_envs, pythons)
-    secho(f"[+] Created new {version} environment for {cwd} ~❀", fg="green")
+    secho(f"[+] Created new {version} environment for {CWD} ~❀", fg="green")
 
 
 @main.command("import")
@@ -276,8 +276,7 @@ def command_env_import(root: Path, label: str) -> None:
     version = proc.stdout.strip()
     python = pythons[version]
 
-    cwd = Path.cwd()
-    project_envs = search_environments_at(cwd, all_envs)
+    project_envs = search_environments_at(CWD, all_envs)
     make_default = not bool(project_envs)
     if make_default:
         message("notice", "No existing environments found, this will be the default :)")
@@ -286,13 +285,13 @@ def command_env_import(root: Path, label: str) -> None:
     all_envs.append(Environment(
         label=label,
         python=python,
-        project=cwd,
+        project=CWD,
         location=root,
         flags=["default", "external"] if make_default else ["external"],
         created_at=timestamp,
     ))
     save_record(all_envs, pythons)
-    secho(f"[+] Imported {version} environment ({root.name}) for {cwd} ~❀", fg="green")
+    secho(f"[+] Imported {version} environment ({root.name}) for {CWD} ~❀", fg="green")
 
 
 @main.command("list")
@@ -304,7 +303,7 @@ def command_env_list(list_all: bool, format_json: bool) -> None:
     envs, _ = load_record()
     if format_json:
         if not list_all:
-            envs = search_environments_at(Path.cwd(), envs)
+            envs = search_environments_at(CWD, envs)
         raw = [asdict(e) for e in envs]
         json.dump(raw, sys.stdout, indent=2, cls=JSONEncoder)
         print()
@@ -324,11 +323,11 @@ def command_env_list(list_all: bool, format_json: bool) -> None:
             print()
         secho(f"{len(envs)} environments are currently managed by vem.", bold=True)
     else:
-        envs = search_environments_at(Path.cwd(), envs)
+        envs = search_environments_at(CWD, envs)
         if not envs:
-            message("warning", f"No environments found for {Path.cwd()}")
+            message("warning", f"No environments found for {short_path(CWD)}")
             sys.exit(0)
-        secho(f"Found {len(envs)} environments for {Path.cwd()}\n")
+        secho(f"Found {len(envs)} environments for {CWD}\n")
         for e in envs:
             color = "magenta" if e.default else None
             secho(f"- {e.python.version}", nl=False, fg=color, bold=True)
@@ -347,10 +346,9 @@ def command_env_list_all(context: click.Context) -> None:
 def command_env_activation_path(shell: str) -> None:
     """Return an environment's activation script path (STDERR)."""
     envs, _ = load_record()
-    cwd = Path.cwd()
-    project_envs = search_environments_at(cwd, envs)
+    project_envs = search_environments_at(CWD, envs)
     if len(project_envs) == 0:
-        message("error", f"No environments found for {cwd}")
+        message("error", f"No environments found for {CWD}")
         sys.exit(1)
     elif len(project_envs) == 1:
         print(activate_path(project_envs[0], shell), file=sys.stderr)
@@ -372,9 +370,9 @@ def command_env_activation_path(shell: str) -> None:
 def command_env_remove() -> None:
     """Remove environments."""
     envs, pythons = load_record()
-    project_envs = search_environments_at(Path.cwd(), envs)
+    project_envs = search_environments_at(CWD, envs)
     if not project_envs:
-        message("error", f"No environments to remove for {Path.cwd()}")
+        message("error", f"No environments to remove for {CWD}")
         sys.exit(1)
 
     selected = questionary.checkbox(
