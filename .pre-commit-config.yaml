@@ -25,6 +25,7 @@ repos:
     additional_dependencies: [
       "click >= 8.0.0",
       "click-aliases",
+      "humanize >= 4.9.0",
       "questionary",
       "platformdirs",
     ]

@@ -1,10 +1,11 @@
 """Richard's janky Python environment management tool."""
 
 __author__ = "Richard Si"
-__version__ = "2024.03.14a3"
+__version__ = "2024.03.16a4"
 
 import json
 import platform
+import os
 import re
 import shutil
 import subprocess
@@ -20,6 +21,7 @@ import platformdirs
 import questionary
 from click import secho, style
 from click_aliases import ClickAliasedGroup  # type: ignore
+from humanize import naturalsize
 from questionary import Choice
 
 WINDOWS = platform.system() == "Windows"
@@ -205,6 +207,17 @@ def message(type: str, message: str, bold: bool = False) -> None:
     secho(f"[{type}] {message}", bold=bold)
 
 
+def get_dir_size(path: Union[str, Path], *, follow_symlinks: bool = False) -> int:
+    total = 0
+    with os.scandir(path) as it:
+        for entry in it:
+            if entry.is_file():
+                total += entry.stat(follow_symlinks=follow_symlinks).st_size
+            elif entry.is_dir(follow_symlinks=follow_symlinks):
+                total += get_dir_size(entry.path)
+    return total
+
+
 @click.group(cls=SmartAliasedGroup)
 def main() -> None:
     """Richard's janky Python environment management tool."""
@@ -321,7 +334,8 @@ def command_env_list(list_all: bool, format_json: bool) -> None:
                 secho(f" - {e.python.version}", nl=False)
                 secho(f" ({e.description})", dim=True)
             print()
-        secho(f"{len(envs)} environments are currently managed by vem.", bold=True)
+        footprint = get_dir_size(ENV_STORE_PATH)
+        secho(f"{len(envs)} environments occupy {naturalsize(footprint)}.", bold=True)
     else:
         envs = search_environments_at(CWD, envs)
         if not envs:

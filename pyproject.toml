@@ -26,6 +26,7 @@ requires-python = ">=3.9"
 dependencies = [
     "click >= 8.0.0",
     "click-aliases",
+    "humanize >= 4.9.0",
     "platformdirs",
     "questionary",
     "virtualenv >= 20.18.0",
