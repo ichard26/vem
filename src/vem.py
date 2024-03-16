@@ -312,6 +312,9 @@ def command_env_list(list_all: bool, format_json: bool) -> None:
         secho(f"{len(envs)} environments are currently managed by vem.", bold=True)
     else:
         envs = search_environments_at(Path.cwd(), envs)
+        if not envs:
+            message("warning", f"No environments found for {Path.cwd()}")
+            sys.exit(0)
         secho(f"Found {len(envs)} environments for {Path.cwd()}\n")
         for e in envs:
             color = "magenta" if e.default else None
