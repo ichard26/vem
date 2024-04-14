@@ -341,7 +341,7 @@ def command_env_list(list_all: bool, format_json: bool) -> None:
         if not envs:
             message("warning", f"No environments found for {short_path(CWD)}")
             sys.exit(0)
-        secho(f"Found {len(envs)} environments for {CWD}\n")
+        secho(f"Found {len(envs)} environments for {short_path(CWD)}\n")
         for e in envs:
             color = "magenta" if e.default else None
             secho(f"- {e.python.version}", nl=False, fg=color, bold=True)
