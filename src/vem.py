@@ -1,7 +1,7 @@
 """Richard's janky Python environment management tool."""
 
 __author__ = "Richard Si"
-__version__ = "2024.03.16a4"
+__version__ = "2024.04.14a5"
 
 import json
 import platform
@@ -357,15 +357,19 @@ def command_env_list_all(context: click.Context) -> None:
 
 @main.command("activation-path")
 @click.argument("shell", type=click.Choice(["default", "fish"]))
-def command_env_activation_path(shell: str) -> None:
+@click.option("--newest", is_flag=True, help="Select newest created environment.")
+def command_env_activation_path(shell: str, newest: bool) -> None:
     """Return an environment's activation script path (STDERR)."""
     envs, _ = load_record()
     project_envs = search_environments_at(CWD, envs)
     if len(project_envs) == 0:
         message("error", f"No environments found for {CWD}")
         sys.exit(1)
-    elif len(project_envs) == 1:
-        print(activate_path(project_envs[0], shell), file=sys.stderr)
+
+    if len(project_envs) == 1:
+        selected = project_envs[0]
+    elif newest:
+        selected = sorted(project_envs, key=lambda e: e.created_at)[-1]
     else:
         choices = [
             Choice(f"{e.python.version} ({e.description})", value=e)
@@ -377,7 +381,8 @@ def command_env_activation_path(shell: str) -> None:
         ).ask()
         if not selected:
             sys.exit(1)
-        print(activate_path(selected, shell), file=sys.stderr)
+
+    print(activate_path(selected, shell), file=sys.stderr)
 
 
 @main.command("remove", aliases=["rm"])
