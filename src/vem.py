@@ -14,7 +14,7 @@ from collections import defaultdict
 from dataclasses import asdict, dataclass, field, replace
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Sequence, Union
+from typing import Any, Optional, Sequence, Union
 
 import click
 import platformdirs
@@ -219,13 +219,21 @@ def get_dir_size(path: Union[str, Path], *, follow_symlinks: bool = False) -> in
 
 
 @click.group(cls=SmartAliasedGroup)
-def main() -> None:
+@click.option(
+    "-C", "--chdir", help="Pretend the current working working is somewhere else.",
+    type=click.Path(exists=True, resolve_path=True, path_type=Path)
+)
+def main(chdir: Optional[Path]) -> None:
     """Richard's janky Python environment management tool."""
     if not RECORD_PATH.exists():
         RECORD_PATH.parent.mkdir(exist_ok=True, parents=True)
         RECORD_PATH.write_text("{}\n", encoding="utf-8")
     if not ENV_STORE_PATH.exists():
         ENV_STORE_PATH.mkdir(exist_ok=True, parents=True)
+    if chdir is not None:
+        os.chdir(chdir)
+        global CWD
+        CWD = chdir
 
 
 @main.command("new")
