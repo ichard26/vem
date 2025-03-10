@@ -237,15 +237,17 @@ def main(chdir: Optional[Path]) -> None:
 
 
 @main.command("new")
+@click.option("-p", "--python", "version", default=None)
 @click.option("-l", "--label", help="Give the environment a descriptive label.", default="")
-def command_env_new(label: str) -> None:
+def command_env_new(label: str, version: str) -> None:
     """Create a new environment for the CWD."""
     all_envs, pythons = load_record()
-    version = questionary.select(
-        "What version of Python do you want?",
-        choices=list(pythons.keys()),
-        default=default_python(pythons).version,
-    ).ask()
+    if version is None:
+        version = questionary.select(
+            "What version of Python do you want?",
+            choices=list(pythons.keys()),
+            default=default_python(pythons).version,
+        ).ask()
     if not version:
         sys.exit(1)
     python = pythons[version]
