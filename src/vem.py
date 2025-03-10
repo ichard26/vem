@@ -368,8 +368,15 @@ def command_env_list_all(context: click.Context) -> None:
 @main.command("activation-path")
 @click.argument("shell", type=click.Choice(["default", "fish"]))
 @click.option("--newest", is_flag=True, help="Select newest created environment.")
-def command_env_activation_path(shell: str, newest: bool) -> None:
+@click.option(
+    "-C", "--chdir", help="Pretend the current working working is somewhere else.",
+    type=click.Path(exists=True, resolve_path=True, path_type=Path)
+)
+def command_env_activation_path(shell: str, newest: bool, chdir: Optional[Path]) -> None:
     """Return an environment's activation script path (STDERR)."""
+    if chdir is not None:
+        global CWD
+        CWD = chdir
     envs, _ = load_record()
     project_envs = search_environments_at(CWD, envs)
     if len(project_envs) == 0:
