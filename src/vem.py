@@ -270,7 +270,7 @@ def command_env_new(label: str, version: str) -> None:
         sys.executable, "-m", "virtualenv", location,
         "--python", python.executable, "--prompt", label
     ]
-    subprocess.run(cmd, check=True)
+    subprocess.run(cmd, check=True, capture_output=True)
     all_envs.append(Environment(
         label=label,
         python=python,
@@ -280,7 +280,7 @@ def command_env_new(label: str, version: str) -> None:
         created_at=timestamp,
     ))
     save_record(all_envs, pythons)
-    secho(f"[+] Created new {version} environment for {CWD} ~❀", fg="green")
+    secho(f"[+] Created new {version} environment for {short_path(CWD)} ~❀", fg="green")
 
 
 @main.command("import")
@@ -477,7 +477,7 @@ def command_python_add(executable: Path, mark_as_default: bool) -> None:
         if not questionary.confirm("Do you want to replace the current installation?").ask():
             sys.exit(1)
 
-    if mark_as_default and (default_install := default_python(pythons)):
+    if mark_as_default and pythons and (default_install := default_python(pythons)):
         message("warning", f"Undefaulting {default_install.version} (from {default_install.location})")
     flags = ["external", "default"] if mark_as_default else ["external"]
     pythons[version] = PythonInstall(label="", version=version, location=Path(location), flags=flags)
