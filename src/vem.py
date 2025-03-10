@@ -395,6 +395,18 @@ def command_env_activation_path(shell: str, newest: bool) -> None:
     print(activate_path(selected, shell), file=sys.stderr)
 
 
+@main.command("path")
+def command_active_path() -> None:
+    envs, _ = load_record()
+    if activated_env_path := os.getenv("VIRTUAL_ENV"):
+        env = next((e for e in envs if e.location == Path(activated_env_path)), None)
+        if env is not None:
+            print(env.location)
+            return
+
+    message("error", "No managed virtual environment is active")
+
+
 @main.command("remove", aliases=["rm"])
 def command_env_remove() -> None:
     """Remove environments."""
